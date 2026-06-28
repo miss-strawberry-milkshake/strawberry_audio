@@ -6,11 +6,9 @@ use coreaudio::audio_unit::render_callback::{self, data};
 use coreaudio::audio_unit::{Element, SampleFormat, Scope, StreamFormat};
 use objc2_audio_toolbox::kAudioUnitProperty_StreamFormat;
 
-use histo::Histogram;
-
 mod dft;
-mod sin;
-mod time_utils;
+// mod sin;
+// mod time_utils;
 mod wav_file;
 
 fn main() -> Result<(), coreaudio::Error> {
@@ -37,30 +35,10 @@ fn main() -> Result<(), coreaudio::Error> {
     type Args = render_callback::Args<data::Interleaved<f32>>;
 
     // ~~~ OTHER SETUP ~~~
-    let mut song = wav_file::Wav::new("./audio/short_party_people.wav");
-    let frequency = 440.;
-    let amplitude = 0.15;
-    let phase = 1.0;
-    let mut sin_wav = sin::SineWaveGenerator::new(frequency, amplitude, phase);
+
+    let mut song = wav_file::Wav::new("./audio/Pierce The Veil - Collide With The Sky - 11 Stained Glass Eyes And Colorful Tears.wav");
 
     // ~~~ MAIN LOOP ~~~
-
-    let mut samples = vec![0.; song.bytes.len()/2];
-
-    for i in 0..samples.len() {
-        let current_sample = song.next().unwrap();
-        samples[i] = current_sample[0];
-    }
-
-    let amps = dft::dft(samples);
-
-    println!("amps len {}", amps.len());
-
-    let mut histogram = Histogram::with_buckets(amps.len() as u64);
-
-    for i in 0..amps.len(){
-        histogram.add(amps[i] as u64);
-    }
 
     audio_unit.set_render_callback(move |args| {
         let Args {
@@ -70,18 +48,20 @@ fn main() -> Result<(), coreaudio::Error> {
         for current_frame_index in 0..num_frames {
             let index_left = 2 * current_frame_index;
             let index_right = (2 * current_frame_index) + 1;
-
-            let sin_samples = sin_wav.next().unwrap();
-            let song_samples = song.next().unwrap();
-
-            data.buffer[index_left] = song_samples[0];
-            data.buffer[index_right] = song_samples[1];
+            let song_samples = song.next();
+            if song_samples != None {
+                data.buffer[index_left] = song_samples.unwrap()[0];
+                data.buffer[index_right] = song_samples.unwrap()[1];
+            }
         }
+        let spectrum = dft::dft(&data.buffer);
+        print!("\x1B[2J\x1B[H"); // clears the console
+        dft::print_spectrum(&spectrum, stream_format.sample_rate as f32, 64, 16);
         Ok(())
     })?;
 
     audio_unit.start()?;
     loop {}
-    // std::thread::sleep(std::time::Duration::from_millis(10_000));
-    // Ok(())
+
+    Ok(())
 }

@@ -1,5 +1,5 @@
 use std::fs;
-
+#[allow(unused)]
 pub struct Wav {
     pub bytes: Vec<u8>,
     sample_rate: u32,
@@ -90,9 +90,10 @@ impl Wav {
 impl Iterator for Wav {
     type Item = [f32; 2];
     fn next(&mut self) -> Option<[f32; 2]> {
+        #[allow(unused)]
         let mut current_sample = [0., 0.];
 
-        if self.bits_per_sample == 16 && self.index + 2 < self.bytes.len(){
+        if self.bits_per_sample == 16 && self.index + 2 < self.bytes.len() {
             let left_channel_sample =
                 i16::from_le_bytes(self.bytes[self.index..self.index + 2].try_into().unwrap());
             let right_channel_sample = i16::from_le_bytes(
@@ -105,7 +106,7 @@ impl Iterator for Wav {
                 (right_channel_sample as f32) / (i16::MAX as f32),
             ];
             self.index += 4;
-        } else if self.bits_per_sample == 32 && self.index + 4 < self.bytes.len(){
+        } else if self.bits_per_sample == 32 && self.index + 4 < self.bytes.len() {
             let left_channel_sample =
                 i32::from_le_bytes(self.bytes[self.index..self.index + 4].try_into().unwrap());
             let right_channel_sample = i32::from_le_bytes(
@@ -118,8 +119,9 @@ impl Iterator for Wav {
                 (right_channel_sample as f32) / (i32::MAX as f32),
             ];
             self.index += 8;
+        } else {
+            return None;
         }
-
         Some(current_sample)
     }
 }
