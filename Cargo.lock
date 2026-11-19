@@ -13,6 +13,7 @@ dependencies = [
  "objc2-core-audio",
  "objc2-core-audio-types",
  "objc2-core-foundation",
+ "rtrb",
 ]
 
 [[package]]
@@ -218,3 +219,9 @@ dependencies = [
  "bitflags",
  "objc2",
 ]
+
+[[package]]
+name = "rtrb"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5974e397833d890f2f74963408e0d4a6cd8eda2f6a445ae06750291b5d7a997e"

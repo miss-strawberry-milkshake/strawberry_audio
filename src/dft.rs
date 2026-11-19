@@ -1,78 +1,67 @@
 use num::complex::Complex32;
-use std::f32::consts::TAU;
+use std::f32::consts::PI;
+use std::io::{self, Write};
 
-pub fn dft(samples: &[f32]) -> Vec<Complex32> {
+pub fn dft(samples: &[f32]) -> Vec<f32> {
     let number_of_samples = samples.len();
-    let mut output = Vec::with_capacity(number_of_samples);
+    let mut frequency_spectrum : Vec<f32> = vec![];
 
-    for current_sample_index in 0..number_of_samples {
+    for current_sample_index in 0..((number_of_samples/2)+1) { // devide by two so we only calculate up to the nyquist
         let mut sum = Complex32::new(0.0, 0.0);
 
         for (test_index, &test_sample) in samples.iter().enumerate() {
+        
             // angle = -2π · k · t / N
-            let angle = -1.0 * TAU * (current_sample_index as f32) * (test_index as f32)
+            let angle = (-2.0 * PI) * (current_sample_index as f32) * (test_index as f32)
                 / (number_of_samples as f32);
+
             sum += Complex32::cis(angle) * test_sample;
         }
 
-        output.push(sum);
+        frequency_spectrum.push(sum.re.hypot(sum.im));
     }
 
-    output
+    frequency_spectrum
+
 }
 
-pub fn print_spectrum(spectrum: &[Complex32], sample_rate: f32, width: usize, height: usize) {
-    let n = spectrum.len();
-    let half = n / 2;
-    if half < 2 || width == 0 || height == 0 {
-        return; // need at least two non-DC bins to span a log axis
-    }
+pub fn print_spectrum(spectrum: Vec<f32>){
 
-    let bins = &spectrum[1..=half];
-    let bin_freq = |k: usize| (k as f32) * sample_rate / (n as f32);
+        print!("\x1B[2J\x1B[1;1H"); //clears the terminal
+        io::stdout().flush().unwrap(); // resets the cursor
 
-    let (f_min, f_max) = (bin_freq(1), bin_freq(half));
-    let (log_min, log_max) = (f_min.log10(), f_max.log10());
+        // Δf = f_s / 2N
+        // frequency_step = sample rate / 2 * number of samples
+        // we multiply by two because of the nyquist thing
+        let frequency_delta = 44100/(2 * spectrum.len());
 
-    let mut cols = vec![0.0f32; width];
-    for (i, c) in bins.iter().enumerate() {
-        let f = bin_freq(i + 1); // +1: we sliced starting at index 1
-        let frac = (f.log10() - log_min) / (log_max - log_min);
-        let col = ((frac * (width - 1) as f32).round() as usize).min(width - 1);
-        cols[col] = cols[col].max(c.norm());
-    }
+        println!("~~~~~~~~~~~~~~~~~~~~~");
 
-    let max_amp = cols.iter().copied().fold(0.0f32, f32::max);
-    if max_amp <= 0.0 {
-        return;
-    }
+        let mut bin_samples: Vec<f32> = vec![];
+        let mut mod_for_log: f32 = 1.;
+        let mod_factor = 1.2;
+        let scale_factor = 20.;
+        let base = 10.;
 
-    for row in 0..height {
-        let threshold = max_amp * (height - row) as f32 / height as f32;
-        let line: String = cols
-            .iter()
-            .map(|&amp| if amp >= threshold { '█' } else { ' ' })
-            .collect();
-        println!("{line}");
-    }
+        for (index, apmlitude) in spectrum.iter().enumerate() {
 
-    println!("{}", "─".repeat(width));
-    let mid_freq = 10f32.powf((log_min + log_max) / 2.0);
-    let (left, mid, right) = (
-        format!("{f_min:.0}"),
-        format!("{mid_freq:.0}"),
-        format!("{f_max:.0} Hz"),
-    );
-    let mut label = vec![b' '; width.max(right.len())];
-    let place = |label: &mut [u8], s: &str, start: usize| {
-        for (i, b) in s.bytes().enumerate() {
-            if let Some(slot) = label.get_mut(start + i) {
-                *slot = b;
-            }
+                if index < 2 { continue; } //ignore mega bass because a simple dft breaks down there. ! fix later !
+
+                bin_samples.push(*apmlitude);
+
+                if (index % (mod_for_log.floor()) as usize) == 0{
+
+                        print!("{}\t", frequency_delta * index);
+
+                        let amp = ((bin_samples.iter().sum::<f32>()).log(base) * scale_factor).ceil() as i32;
+                        for _i in 0..amp {
+                                print!("■");
+                        }
+                        print!("\n");
+
+                        bin_samples.clear();
+                        mod_for_log *= mod_factor;
+                }
         }
-    };
-    place(&mut label, &left, 0);
-    place(&mut label, &mid, width / 2 - mid.len() / 2);
-    place(&mut label, &right, width.saturating_sub(right.len()));
-    println!("{}", String::from_utf8(label).unwrap());
+        println!("~~~~~~~~~~~~~~~~~~~~~");
 }
