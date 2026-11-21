@@ -137,7 +137,7 @@ fn main() -> Result<(), coreaudio::Error> {
             .map(|(dft_sample, fft_sample)| dft_sample - fft_sample)
             .collect();
         assert!(
-            (error.iter().sum::<f32>().abs() * 10_f32.powi(3)) / 10_f32.powi(3) == 0.,
+            ((error.iter().sum::<f32>().abs() * 100.).round() / 100.) == 0.,
             "dft and fft disagree, something is wrong"
         );
 
